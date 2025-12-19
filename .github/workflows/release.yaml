@@ -1,0 +1,123 @@
+name: Release Cable Generator
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version number (e.g., v1.1.0)'
+        required: true
+        type: string
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Get version from tag or input
+        id: get_version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION=${GITHUB_REF#refs/tags/}
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "version_number=${VERSION#v}" >> $GITHUB_OUTPUT
+      
+      - name: Verify addon file exists
+        run: |
+          if [ ! -f "cable_generator.py" ]; then
+            echo "Error: cable_generator.py not found at repository root!"
+            exit 1
+          fi
+          echo "✓ Found cable_generator.py"
+      
+      - name: Create release zip (addon at top level)
+        run: |
+          VERSION="${{ steps.get_version.outputs.version }}"
+          ZIP_NAME="cable_generator-${VERSION}.zip"
+          
+          # Create zip with the .py file at top level
+          # This is the correct structure for Blender addons
+          zip -j "${ZIP_NAME}" cable_generator.py
+          
+          echo "Created ${ZIP_NAME}"
+          echo "ZIP_NAME=${ZIP_NAME}" >> $GITHUB_ENV
+          
+          # Verify zip contents
+          echo "Zip contents:"
+          unzip -l "${ZIP_NAME}"
+      
+      - name: Generate release notes
+        id: release_notes
+        run: |
+          cat << 'EOF' > release_notes.md
+          ## Cable Generator ${{ steps.get_version.outputs.version }}
+          
+          ### 🎉 What's New
+          
+          - **Smart Cable Generation**: Create cables between faces or objects
+          - **Live Editing**: Adjust thickness, resolution, and sag in real-time
+          - **End Caps**: Automatic connectors with auto-scaling and orientation
+          - **Array Support**: Repeat meshes along cable paths
+          - **Preset System**: Quick presets for common cable types
+          - **Organized UI**: Collapsible panels for clean workspace
+          
+          ### 📦 Installation
+          
+          1. Download `cable_generator-${{ steps.get_version.outputs.version }}.zip` below
+          2. In Blender: Edit → Preferences → Add-ons
+          3. Click "Install..." and select the downloaded ZIP
+          4. Enable "Cable Generator"
+          5. Find it in the N-panel under "Cable Gen" tab
+          
+          ### ⚙️ Requirements
+          
+          - Blender 3.0 or higher
+          
+          ### 📖 Documentation
+          
+          See the [README](https://github.com/${{ github.repository }}/blob/main/README.md) for full documentation and usage guide.
+          
+          ### 🐛 Report Issues
+          
+          Found a bug? [Open an issue](https://github.com/${{ github.repository }}/issues)
+          
+          ---
+          
+          **Enjoy creating cables! 🔌✨**
+          EOF
+          
+          echo "release_notes<<EOF" >> $GITHUB_OUTPUT
+          cat release_notes.md >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+      
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: Cable Generator ${{ steps.get_version.outputs.version }}
+          body: ${{ steps.release_notes.outputs.release_notes }}
+          files: ${{ env.ZIP_NAME }}
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Release Summary
+        run: |
+          echo "## 🎉 Release Created Successfully!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** ${{ steps.get_version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "**File:** ${{ env.ZIP_NAME }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Release Assets" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ ${{ env.ZIP_NAME }} (Blender addon - ready to install)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Installation" >> $GITHUB_STEP_SUMMARY
+          echo "Users can now download the ZIP and install directly in Blender!" >> $GITHUB_STEP_SUMMARY

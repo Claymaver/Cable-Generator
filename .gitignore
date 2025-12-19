@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# Blender
+*.blend1
+*.blend2
+*.blend@
+*.blend#
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Release artifacts
+*.zip
+release_notes.md
+
+# Testing
+test_*.py
+temp/
+tmp/
+
+# Documentation builds
+docs/_build/
+site/
+
+# OS
+Thumbs.db
+.DS_Store
+desktop.ini
